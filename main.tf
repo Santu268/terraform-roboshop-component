@@ -48,7 +48,7 @@ resource "aws_ami_from_instance" "main" {
 }
 
 resource "aws_launch_template" "main" {
-  name = ${local.common_name}
+  name = "${local.common_name}"
 
   image_id = aws_ami_from_instance.main.id
 
