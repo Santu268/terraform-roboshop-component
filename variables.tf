@@ -39,10 +39,12 @@ variable "env" {
 
   variable "app_version" {
   type = string
-  default = ""
- }
+  }
 
  variable "component"{
   type = string
-  default = ""
+  }
+
+ variable "rule_priority"{
+  type = string
  }

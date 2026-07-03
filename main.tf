@@ -1,7 +1,7 @@
 resource "aws_instance" "main" {
   ami           = local.ami_id
   instance_type = var.instance_type
-  vpc_security_group_ids = [local.catalogue_sg_id]
+  vpc_security_group_ids = [local.sg_id]
   subnet_id = local.private_subnet_id
   tags = local.common_tags
 }
@@ -48,7 +48,7 @@ resource "aws_ami_from_instance" "main" {
 }
 
 resource "aws_launch_template" "main" {
-  name = local.common_name
+  name = ${local.common_name}
 
   image_id = aws_ami_from_instance.main.id
 
@@ -90,9 +90,9 @@ resource "aws_launch_template" "main" {
 }
 
 resource "aws_lb_target_group" "main" {
-  name     = "${var.project}-${var.env}"
+  name     = "${local.common_name}"
   port     = var.component == "frontend" ? "80" : "8080"
-  protocol = var.component == "frontend" ? "HTTPS" : "HTTP"
+  protocol = "HTTP"
   vpc_id   = local.vpc_id
   deregistration_delay = 30
  health_check {
@@ -101,7 +101,7 @@ resource "aws_lb_target_group" "main" {
   interval =10
   matcher = "200-299"
   path = var.component == "frontend" ? "/" : "/health"
-  protocol = var.component == "frontend" ? "HTTPS" : "HTTP"
+  protocol = "HTTP"
   port = var.component == "frontend" ? "80" : "8080"
   timeout = 5
   unhealthy_threshold = 2
@@ -111,7 +111,7 @@ resource "aws_lb_target_group" "main" {
 
 
 resource "aws_autoscaling_group" "main" {
-  name                      = "${var.project}-${var.env}"
+  name                      = "${local.common_name}"
   max_size                  = 10
   min_size                  = 1
   health_check_grace_period = 120
@@ -147,7 +147,7 @@ target_group_arns = [aws_lb_target_group.main.arn]
 }
 
 resource "aws_autoscaling_policy" "main" {
-  name                   = "${var.project}-${var.env}"
+  name                   = "${local.common_name}"
   estimated_instance_warmup = 120
   autoscaling_group_name = aws_autoscaling_group.main.name
   policy_type            = "TargetTrackingScaling"
@@ -162,7 +162,7 @@ resource "aws_autoscaling_policy" "main" {
 
 resource "aws_lb_listener_rule" "alb_rule" {
   listener_arn = local.alb_listener_arn
-  priority     = 10
+  priority     = var.rule_priority
 
   action {
     type             = "forward"
@@ -171,19 +171,19 @@ resource "aws_lb_listener_rule" "alb_rule" {
 
   condition {
     path_pattern {
-      values = [var.component == "frontend" ? "${var.project}-${var.env}.${var.domain_name}" : "${var.component}.backed-alb-${var.env}.${var.domain_name}"]
+      values = [ local.host_header ]
     }
   }
 
 }
 
-resource "terraform_data" "component_terminate" {
-  triggers_replace = [
-     aws_instance.main.id
-  ]
-depends_on = [aws_autoscaling_group.main]
+# resource "terraform_data" "component_terminate" {
+#   triggers_replace = [
+#      aws_instance.main.id
+#   ]
+# depends_on = [aws_autoscaling_group.main]
 
-  provisioner "local-exec" {
-    command = "aws ec2 terminate-instances --instance-ids ${aws_instance.main.id}"
-  }
-}
+#   provisioner "local-exec" {
+#     command = "aws ec2 terminate-instances --instance-ids ${aws_instance.main.id}"
+#   }
+# }
