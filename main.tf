@@ -170,7 +170,7 @@ resource "aws_lb_listener_rule" "alb_rule" {
   }
 
   condition {
-    path_pattern {
+    host_header {
       values = [ local.host_header ]
     }
   }
